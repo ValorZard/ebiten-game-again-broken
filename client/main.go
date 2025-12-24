@@ -182,8 +182,8 @@ func (g *Game) Update() error {
 	}
 
 	if _, err := g.debugui.Update(func(ctx *debugui.Context) error {
-		ctx.Window("Debugui Window", image.Rect(0, 0, 320, 500), func(layout debugui.ContainerLayout) {
-			ctx.SetGridLayout([]int{-1}, []int{100, 20, 20, 100, 0})
+		ctx.Window("Debugui Window", image.Rect(0, 0, 320, 400), func(layout debugui.ContainerLayout) {
+			ctx.SetGridLayout([]int{-1}, []int{-1, 20, 20})
 			// Place all your widgets inside a ctx.Window's callback.
 			// Specify a presssing-button event handler by On.
 			ctx.Panel(func(layout debugui.ContainerLayout) {
@@ -196,13 +196,6 @@ func (g *Game) Update() error {
 			ctx.Button("WHEP").On(func() {
 				doWhep()
 			})
-
-			ctx.TextField(&g.textMessage)
-
-			ctx.Button("Send").On(func() {
-				g.dataChannel.SendText(g.textMessage)
-			})
-
 		})
 		return nil
 	}); err != nil {
