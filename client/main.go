@@ -302,38 +302,40 @@ func main() {
 	})
 
 	dataChannel.OnMessage(func(msg webrtc.DataChannelMessage) {
-		var messageBytes bytes.Buffer
-		dec := gob.NewDecoder(&messageBytes)
-		messageBytes.Write(msg.Data)
-		var packet common.NetPacket
-		if err := dec.Decode(&packet); err != nil {
-			game.textLog += fmt.Sprintf("Failed to decode incoming message: %v\n", err)
-			return
-		}
-		// this welcome packet gives us our assigned username
-		if game.username == "" {
-			game.username = packet.Username
-			game.textLog += fmt.Sprintf("Assigned username: %s\n", game.username)
-		} else if packet.Username == game.username {
-			// update our own position
-			if packet.Tick <= game.currentPacket.Tick {
-				// outdated packet, ignore
+		// move this to a goroutine if doing heavy processing
+		go func() {
+			var messageBytes bytes.Buffer
+			dec := gob.NewDecoder(&messageBytes)
+			messageBytes.Write(msg.Data)
+			var packet common.NetPacket
+			if err := dec.Decode(&packet); err != nil {
+				game.textLog += fmt.Sprintf("Failed to decode incoming message: %v\n", err)
 				return
 			}
-			// use a shitty version of prediction by interpolating positions
-			game.currentPacket = packet
-			game.playerX = (game.currentPacket.PositionX + game.playerX) / 2
-			game.playerY = (game.currentPacket.PositionY + game.playerY) / 2
-		} else {
-			// update player position
-			game.playerList.mutex.Lock()
-			defer game.playerList.mutex.Unlock()
-			game.playerList.Players[packet.Username] = GameState{
-				PositionX: packet.PositionX,
-				PositionY: packet.PositionY,
+			// this welcome packet gives us our assigned username
+			if game.username == "" {
+				game.username = packet.Username
+				game.textLog += fmt.Sprintf("Assigned username: %s\n", game.username)
+			} else if packet.Username == game.username {
+				// update our own position
+				if packet.Tick <= game.currentPacket.Tick {
+					// outdated packet, ignore
+					return
+				}
+				// use a shitty version of prediction by interpolating positions
+				game.currentPacket = packet
+				game.playerX = (game.currentPacket.PositionX + game.playerX) / 2
+				game.playerY = (game.currentPacket.PositionY + game.playerY) / 2
+			} else {
+				// update player position
+				game.playerList.mutex.Lock()
+				defer game.playerList.mutex.Unlock()
+				game.playerList.Players[packet.Username] = GameState{
+					PositionX: packet.PositionX,
+					PositionY: packet.PositionY,
+				}
 			}
-		}
-		//game.textLog += fmt.Sprintf("Message from DataChannel '%s': %s\n", dataChannel.Label(), string(msg.Data))
+		}()
 	})
 
 	game.dataChannel = dataChannel
